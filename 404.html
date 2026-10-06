@@ -134,9 +134,19 @@
         return /^https?:\/\/github\.com\/.+\/.+\/blob\//.test(url);
       }
 
+      // Base path of this deployment ("/" for a root domain,
+      // "/gfmpreview/" for a GitHub project Pages site, etc.).
+      function basePath() {
+        const path = location.pathname;
+        return path.endsWith("/")
+          ? path
+          : path.slice(0, path.lastIndexOf("/") + 1);
+      }
+
       function goToPreview(fileURL) {
-        // Keep the classic "prepend to the URL" scheme: /<blob-url>
-        location.href = "/" + fileURL.trim();
+        // Keep the classic "prepend to the URL" scheme, preserving the
+        // deployment's base path: /<base>/<blob-url>
+        location.href = basePath() + fileURL.trim();
       }
 
       // Resolve relative links/images the way the old server did with
@@ -188,16 +198,22 @@
 
       (function init() {
         document.getElementById("hostprefix").textContent =
-          location.origin + "/";
-        // Accept both /<blob-url> (classic prepend scheme) and ?url=<blob-url>.
+          location.origin + basePath();
+        // Accept /<blob-url>, /<base>/<blob-url> (classic prepend scheme),
+        // and ?url=<blob-url>. The blob URL is found by locating the
+        // embedded https?://, so any deployment base path is tolerated.
         let blobURL = "";
-        const fromPath = decodeURIComponent(
-          location.pathname.slice(1),
-        ).trim();
+        let fromPath = "";
+        try {
+          fromPath = decodeURIComponent(location.pathname.slice(1)).trim();
+        } catch {
+          fromPath = location.pathname.slice(1).trim();
+        }
+        const pathMatch = fromPath.match(/(https?:\/\/.+)/);
         const fromQuery = new URLSearchParams(location.search)
           .get("url")
           ?.trim();
-        if (fromPath && /^https?:\/\//.test(fromPath)) blobURL = fromPath;
+        if (pathMatch) blobURL = pathMatch[1];
         else if (fromQuery) blobURL = fromQuery;
 
         if (blobURL && isBlobURL(blobURL)) {
