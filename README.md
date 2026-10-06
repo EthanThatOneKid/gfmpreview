@@ -2,33 +2,38 @@
 
 Preview
 [GitHub-flavored markdown (GFM)](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax)
-files on [gfmpreview.deno.dev ↩](https://gfmpreview.deno.dev/)
+files right in your browser — no backend needed.
 
 [![screenshot of gfmpreview landing page](https://github.com/user-attachments/assets/f768697a-9005-4a59-9368-aef03d0d387a)](https://gfmpreview.deno.dev/)
 
+## How it works
+
+Paste a GitHub blob URL (or prepend this site's URL to one). The page
+converts it to a `raw.githubusercontent.com` URL, fetches the markdown
+with `fetch()`, and renders it client-side with
+[`marked`](https://github.com/markedjs/marked), sanitized by
+[`DOMPurify`](https://github.com/cure53/DOMPurify) and styled with
+[`github-markdown-css`](https://github.com/sindresorhus/github-markdown-css).
+
 ## Development
 
-Make sure to install Deno:
-<https://deno.land/manual/getting_started/installation>.
-
-Run the project locally:
+No build step and no server. Serve the folder with any static file server:
 
 ```sh
-deno task start
+npx serve .
 ```
 
-Format the project:
+or
 
 ```sh
-deno fmt
+python3 -m http.server
 ```
 
-Check for common errors:
+## Deployment
 
-```sh
-deno lint
-deno check main.ts
-```
+Deploy as static hosting (e.g. GitHub Pages). `404.html` is a copy of
+`index.html` so the `/<blob-url>` scheme keeps working on hosts without
+SPA rewrites.
 
 ## References
 

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub-Flavored Markdown Preview</title>
+    <!-- Render stack, all static, no backend -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.9.0/github-markdown.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/marked@18.1.0/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.16/dist/purify.min.js"></script>
+    <style>
+      body {
+        font: 12px "Helvetica Neue", Helvetica, Arial, freesans, clean,
+          sans-serif;
+        color: #333;
+        margin: 0;
+      }
+      h1 {
+        font-size: 20px;
+      }
+      a {
+        color: #666;
+      }
+      #previewform {
+        padding: 20px;
+        text-align: center;
+      }
+      #previewform strong {
+        color: #333;
+        background-color: #faffa6;
+        padding: 0.1em;
+      }
+      #footer {
+        margin: 20px 0;
+        font-size: 10px;
+        color: #666;
+      }
+      /* Preview mode */
+      #preview {
+        display: none;
+      }
+      #preview main {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+      #status {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 0 24px;
+        text-align: center;
+        color: #666;
+      }
+      #status.error {
+        color: #b3261e;
+      }
+      .markdown-body {
+        box-sizing: border-box;
+        min-width: 200px;
+        max-width: 980px;
+        margin: 0 auto;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Landing mode: shown when no markdown URL is given -->
+    <form
+      id="previewform"
+      onsubmit="goToPreview(this.file.value); return false;"
+    >
+      <h1>GitHub-Flavored Markdown Preview</h1>
+      <p>
+        Enter URL of the
+        <a
+          href="https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax"
+          >GitHub-flavored markdown</a
+        >
+        file to preview:
+        <input
+          type="url"
+          id="file"
+          value=""
+          placeholder="e.g. https://github.com/user/repo/blob/master/README.md"
+          size="60"
+          autofocus
+        />
+        <input type="submit" value="Preview" />
+      </p>
+      <p>
+        or prepend to the URL:
+        <code
+          ><strong id="hostprefix"></strong
+          >https://github.com/ethanthatonekid/gfmpreview/blob/main/README.md</code
+        >
+      </p>
+      <p id="footer">
+        Developed by
+        <a href="https://github.com/EthanThatOneKid">EthanThatOneKid</a> |
+        Contribute on
+        <a href="https://github.com/ethanthatonekid/gfmpreview">GitHub</a> |
+        Inspired by
+        <a href="https://htmlpreview.github.io/">htmlpreview.github.io</a>
+      </p>
+    </form>
+
+    <!-- Preview mode: shown when a markdown URL is given -->
+    <div id="preview">
+      <div id="status">Loading…</div>
+      <main
+        id="content"
+        data-color-mode="auto"
+        data-light-theme="light"
+        data-dark-theme="dark"
+        class="markdown-body"
+        hidden
+      ></main>
+    </div>
+
+    <script>
+      // toRaw converts a GitHub blob URL to a "raw" URL.
+      // (JS port of the old server-side toRaw in main.ts)
+      function toRaw(url) {
+        return url.replace(
+          /^https\:\/\/github\.com\/([a-zA-Z0-9._-]+)\/([a-zA-Z0-9._-]+)\/blob\//,
+          "https://raw.githubusercontent.com/$1/$2/",
+        );
+      }
+
+      function isBlobURL(url) {
+        return /^https?:\/\/github\.com\/.+\/.+\/blob\//.test(url);
+      }
+
+      function goToPreview(fileURL) {
+        // Keep the classic "prepend to the URL" scheme: /<blob-url>
+        location.href = "/" + fileURL.trim();
+      }
+
+      // Resolve relative links/images the way the old server did with
+      // @deno/gfm's baseUrl (links) and mediaBaseUrl (media) options.
+      function resolveRelativeURLs(root, blobURL, rawURL) {
+        const linkBase = blobURL.slice(0, blobURL.lastIndexOf("/") + 1);
+        const mediaBase = rawURL.slice(0, rawURL.lastIndexOf("/") + 1);
+        const isAbsolute = (u) => /^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(u);
+        root.querySelectorAll("a[href]").forEach((a) => {
+          const href = a.getAttribute("href");
+          if (href && !isAbsolute(href)) {
+            a.setAttribute("href", new URL(href, linkBase).href);
+          }
+        });
+        root.querySelectorAll("img[src], source[src], video[poster]").forEach(
+          (el) => {
+            ["src", "poster"].forEach((attr) => {
+              const v = el.getAttribute(attr);
+              if (v && !isAbsolute(v)) {
+                el.setAttribute(attr, new URL(v, mediaBase).href);
+              }
+            });
+          },
+        );
+      }
+
+      async function renderPreview(blobURL) {
+        const status = document.getElementById("status");
+        const content = document.getElementById("content");
+        try {
+          const rawURL = toRaw(blobURL);
+          const res = await fetch(rawURL);
+          if (!res.ok) {
+            throw new Error(`fetch failed: ${res.status} ${res.statusText}`);
+          }
+          const gfm = await res.text();
+          const dirty = marked.parse(gfm, { gfm: true, breaks: false });
+          const clean = DOMPurify.sanitize(dirty);
+          content.innerHTML = clean;
+          resolveRelativeURLs(content, blobURL, rawURL);
+          document.title = blobURL.split("/").slice(-1)[0] + " — GFM Preview";
+          status.hidden = true;
+          content.hidden = false;
+        } catch (err) {
+          status.textContent = `Could not preview that file: ${err.message}`;
+          status.classList.add("error");
+        }
+      }
+
+      (function init() {
+        document.getElementById("hostprefix").textContent =
+          location.origin + "/";
+        // Accept both /<blob-url> (classic prepend scheme) and ?url=<blob-url>.
+        let blobURL = "";
+        const fromPath = decodeURIComponent(
+          location.pathname.slice(1),
+        ).trim();
+        const fromQuery = new URLSearchParams(location.search)
+          .get("url")
+          ?.trim();
+        if (fromPath && /^https?:\/\//.test(fromPath)) blobURL = fromPath;
+        else if (fromQuery) blobURL = fromQuery;
+
+        if (blobURL && isBlobURL(blobURL)) {
+          document.getElementById("previewform").style.display = "none";
+          document.getElementById("preview").style.display = "block";
+          renderPreview(blobURL);
+        }
+        // Otherwise: landing mode, form stays visible.
+      })();
+    </script>
+  </body>
+</html>
