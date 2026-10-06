@@ -4,7 +4,7 @@ Preview
 [GitHub-flavored markdown (GFM)](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax)
 files right in your browser — no backend needed.
 
-[![screenshot of gfmpreview landing page](https://github.com/user-attachments/assets/f768697a-9005-4a59-9368-aef03d0d387a)](https://gfmpreview.deno.dev/)
+[![screenshot of gfmpreview landing page](https://github.com/user-attachments/assets/f768697a-9005-4a59-9368-aef03d0d387a)](https://ethanthatonekid.github.io/gfmpreview)
 
 ## How it works
 
